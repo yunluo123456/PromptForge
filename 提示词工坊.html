@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提示词工坊 · PromptForge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46e5'/%3E%3Cpath d='M10 8v16h4v-2h-2V10h2V8h-4zm8 0v16h4v-2h-2V10h2V8h-4z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+/* ===== 设计系统：靛蓝工具风 ===== */
+:root{
+  --ink:#1d2536; --ink-2:#5a6578; --ink-3:#7a8499;
+  --paper:#f4f6fc; --card:#ffffff; --line:#e3e7f2;
+  --indigo:#4f46e5; --indigo-deep:#3730a3; --indigo-soft:#e9ecff;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --teal:#0d9488; --teal-soft:#e3f6f3;
+  --red:#dc2626; --red-soft:#fdeaea;
+  --shadow:0 1px 2px rgba(29,37,54,.05),0 8px 24px rgba(29,37,54,.06);
+  --radius:14px;
+  --mono:"SFMono-Regular",ui-monospace,Consolas,"Liberation Mono",monospace;
+}
+[data-theme="dark"]{
+  --ink:#e8ebf4; --ink-2:#a7b0c4; --ink-3:#7c869e;
+  --paper:#0f1220; --card:#171b2a; --line:#262c40;
+  --indigo:#818cf8; --indigo-deep:#a5b4fc; --indigo-soft:#1d2140;
+  --amber:#f59e0b; --amber-soft:#2c2313;
+  --teal:#2dd4bf; --teal-soft:#0e2a28;
+  --red:#f87171; --red-soft:#331b1b;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  background:var(--paper);color:var(--ink);font-size:15px;line-height:1.65;
+  transition:background .2s,color .2s;
+}
+a{color:var(--indigo);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:16px;color:var(--ink)}
+::selection{background:var(--indigo);color:#fff}
+
+/* ===== 顶栏 ===== */
+.topbar{
+  position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--card) 88%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.topbar-inner{max-width:1020px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:.2px;white-space:nowrap}
+.brand svg{flex:none}
+.brand small{font-weight:500;color:var(--ink-3);font-size:12px;letter-spacing:0}
+.nav{display:flex;gap:2px;margin-left:auto;overflow-x:auto}
+.nav button{
+  min-height:44px;
+  display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;
+  font-size:14px;color:var(--ink-2);white-space:nowrap;transition:background .15s,color .15s;
+}
+.nav button:hover{background:var(--indigo-soft);color:var(--indigo)}
+.nav button.on{background:var(--indigo);color:#fff;font-weight:600}
+.nav button svg{flex:none}
+
+/* ===== 布局 ===== */
+.main{max-width:1020px;margin:0 auto;padding:22px 18px 80px}
+.view{display:none}
+.view.on{display:block;animation:fadeIn .22s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px;align-items:start}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+
+/* ===== 卡片与区块 ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card+.card{margin-top:14px}
+.h-title{font-size:16px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.h-title .bar{width:4px;height:16px;border-radius:2px;background:var(--indigo);flex:none}
+.h-sub{font-size:13px;color:var(--ink-3);margin:-4px 0 10px}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin:12px 0 6px}
+input[type=text],input[type=password],textarea,select{
+  width:100%;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+  outline:none;transition:border .15s,box-shadow .15s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--indigo);box-shadow:0 0 0 3px color-mix(in srgb,var(--indigo) 18%,transparent)}
+textarea{resize:vertical;min-height:90px}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a8499' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+
+/* ===== 按钮 ===== */
+.btn{
+  min-height:44px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--indigo);color:#fff;font-weight:600;font-size:14px;
+  padding:10px 18px;border-radius:10px;transition:background .15s,transform .05s;
+}
+.btn:hover{background:var(--indigo-deep)}
+.btn:active{transform:scale(.98)}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-soft)}
+.btn.small{min-height:30px;padding:6px 10px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.btn.amber{background:var(--amber)}
+.btn.amber:hover{filter:brightness(.95)}
+
+/* ===== 标签与 chips ===== */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);
+  font-size:13px;color:var(--ink-2);transition:all .15s;cursor:pointer;
+}
+.chip:hover{border-color:var(--indigo);color:var(--indigo)}
+.chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff;font-weight:600}
+.tag{display:inline-block;font-size:12px;color:var(--ink-3);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin:2px 4px 0 0}
+
+/* ===== 评分与结果 ===== */
+.score-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 18px;margin-top:6px}
+@media(max-width:560px){.score-grid{grid-template-columns:1fr}}
+.score-row{display:flex;align-items:center;gap:8px;font-size:13px}
+.score-row .name{width:64px;flex:none;color:var(--ink-2)}
+.score-track{flex:1;height:7px;border-radius:4px;background:var(--paper);border:1px solid var(--line);overflow:hidden}
+.score-fill{height:100%;border-radius:4px;background:var(--indigo);transition:width .4s ease}
+.score-num{width:34px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2);flex:none}
+.avg-big{display:flex;align-items:baseline;gap:6px;margin-top:10px}
+.avg-big b{font-size:30px;font-variant-numeric:tabular-nums;color:var(--indigo)}
+.sug{font-size:13.5px;color:var(--ink-2);margin:4px 0;display:flex;gap:8px}
+.sug i{width:18px;height:18px;flex:none;border-radius:50%;background:var(--teal-soft);color:var(--teal);font-style:normal;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.prompt-box{
+  background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;
+  font-family:var(--mono);font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+  max-height:520px;overflow:auto;user-select:text;
+}
+.ver-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 10px}
+.ver-tabs button{
+  padding:5px 12px;border-radius:8px;font-size:13px;border:1px solid var(--line);color:var(--ink-2);transition:all .15s;
+}
+.ver-tabs button:hover{border-color:var(--indigo);color:var(--indigo)}
+.ver-tabs button.on{background:var(--indigo-soft);border-color:var(--indigo);color:var(--indigo);font-weight:600}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.actions .btn{flex:1;min-width:120px}
+
+/* ===== 模板/历史卡片 ===== */
+.tpl-card,.his-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.tpl-card+.tpl-card,.his-card+.his-card{margin-top:10px}
+.tpl-card .row,.his-card .row{display:flex;align-items:center;gap:8px}
+.tpl-card .name,.his-card .name{font-weight:600;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpl-card .desc{font-size:14px;color:var(--ink-3);margin-top:2px}
+.tpl-card .meta{font-size:12px;color:var(--ink-3);margin-top:4px}
+.icon-btn{
+  width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--ink-3);transition:all .15s;flex:none;
+}
+.icon-btn:hover{background:var(--indigo-soft);color:var(--indigo)}
+.icon-btn.danger:hover{background:var(--red-soft);color:var(--red)}
+.icon-btn.on{color:var(--amber)}
+.empty{text-align:center;color:var(--ink-3);padding:40px 0;font-size:14px}
+.empty svg{margin-bottom:8px;opacity:.5}
+.searchbar{position:relative;margin-bottom:12px}
+.searchbar svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.searchbar input{padding-left:36px}
+
+/* ===== 首页 ===== */
+.hero{padding:6px 0 4px}
+.hero h1{font-size:30px;font-weight:800;letter-spacing:-.3px}
+.hero p{color:var(--ink-3);font-size:14.5px;margin-top:4px}
+.quick-input textarea{min-height:110px;font-size:16px;line-height:1.7}
+.recent-line{display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px}
+.recent-line h2{font-size:15px;font-weight:700}
+
+/* ===== Toast / 弹层 ===== */
+#toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);z-index:99;
+  background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font-size:14px;
+  opacity:0;pointer-events:none;transition:all .25s;box-shadow:var(--shadow);max-width:86vw;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.modal-mask{position:fixed;inset:0;background:rgba(15,18,32,.55);z-index:80;display:none;align-items:flex-start;justify-content:center;padding:7vh 18px 18px;overflow:auto}
+.modal-mask.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:16px;max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow)}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:12px}
+.modal .row-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+
+/* ===== 设置 ===== */
+.set-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:none}
+.set-row .info{flex:1}
+.set-row .info b{font-size:14px;font-weight:600}
+.set-row .info p{font-size:13px;color:var(--ink-3)}
+.switch{position:relative;width:44px;height:24px;flex:none;cursor:pointer}
+.switch input{opacity:0;width:0;height:0}
+.switch .track{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:.2s}
+.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch input:checked+.track{background:var(--indigo)}
+.switch input:checked+.track::after{transform:translateX(20px)}
+.set-seg{display:flex;gap:6px;flex-wrap:wrap}
+.set-seg button{padding:5px 12px;border-radius:8px;border:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.set-seg button.on{background:var(--indigo);border-color:var(--indigo);color:#fff;font-weight:600}
+
+@media(max-width:560px){
+  .topbar-inner{padding:8px 12px;gap:8px}
+  .brand small{display:none}
+  .nav button{padding:10px 12px;font-size:13px;min-height:44px}
+  .main{padding:16px 12px 90px}
+  .hero h1{font-size:24px}
+  .card{padding:14px}
+  .icon-btn{width:44px;height:44px}
+  .btn.small{min-height:44px;padding:8px 14px}
+  .actions .btn{min-width:100%}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body data-theme="light">
+<!-- ===== 顶栏 ===== -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#4f46e5"/><path d="M10 8v16h4v-2h-2V10h2V8h-4zm8 0v16h4v-2h-2V10h2V8h-4z" fill="#fff"/></svg>
+      <span>提示词工坊</span><small>PromptForge</small>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-view="home" class="on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>首页</button>
+      <button data-view="generate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>生成</button>
+      <button data-view="templates"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>模板</button>
+      <button data-view="history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>历史</button>
+      <button data-view="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>设置</button>
+    </nav>
+  </div>
+</header>
+
+<main class="main" id="main">
+<!-- ===== 视图：首页 ===== -->
+<section class="view on" id="view-home">
+  <div class="hero">
+    <h1>把需求变成高质量提示词</h1>
+    <p>输入你的想法，自动生成结构化、可直接复制使用的提示词 · 完全离线运行</p>
+  </div>
+  <div class="card quick-input" style="margin-top:14px">
+    <label class="f" for="homeInput">你的需求</label>
+    <textarea id="homeInput" placeholder="例：帮我写一篇关于人工智能的公众号文章，面向产品经理，800字左右"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn" id="homeGen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>快速生成</button>
+      <button class="btn ghost" id="homeTplBtn">从模板开始</button>
+    </div>
+  </div>
+  <div class="recent-line"><h2>最近记录</h2><button class="icon-btn" id="homeClearRecent" title="清空历史"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>
+  <div id="homeRecent"></div>
+  <div class="recent-line"><h2>推荐模板</h2></div>
+  <div id="homeTpls"></div>
+</section>
+
+<!-- ===== 视图：生成 ===== -->
+<section class="view" id="view-generate">
+  <div class="grid2">
+    <div class="card">
+      <div class="h-title"><span class="bar"></span>需求与参数</div>
+      <label class="f" for="gSource">需求描述</label>
+      <textarea id="gSource" placeholder="例：写一份面向新员工的入职培训方案，包含时间线…"></textarea>
+      <label class="f">任务类型</label>
+      <div class="chips" id="gTaskChips"></div>
+      <label class="f" for="gGoal">目标（可选）</label>
+      <input type="text" id="gGoal" placeholder="希望达成什么结果">
+      <label class="f" for="gAud">目标受众（可选）</label>
+      <input type="text" id="gAud" placeholder="例如：初学者 / 产品经理 / 高中生">
+      <label class="f" for="gTone">语气风格（可选）</label>
+      <input type="text" id="gTone" placeholder="例如：专业严谨 / 轻松活泼">
+      <label class="f" for="gLen">输出长度（可选）</label>
+      <input type="text" id="gLen" placeholder="例如：500字 / 10页 / 3分钟">
+      <label class="f" for="gFmt">输出格式（可选）</label>
+      <input type="text" id="gFmt" placeholder="例如：Markdown / 表格 / JSON">
+      <label class="f" for="gCons">约束条件（可选）</label>
+      <input type="text" id="gCons" placeholder="例如：不使用专业术语、不要emoji">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div><label class="f" for="gLang">生成语言</label>
+        <select id="gLang"><option>简体中文</option><option>English</option><option>日本語</option><option>한국어</option></select></div>
+        <div><label class="f" for="gModel">目标 AI 模型</label>
+        <select id="gModel"></select></div>
+      </div>
+      <label class="f" for="gFw">提示词框架</label>
+      <select id="gFw"></select>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn block" id="gRun" style="flex:1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>生成提示词</button>
+        <button class="btn amber block" id="gAi" style="flex:1" title="调用已配置的在线 AI 增强"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v9h-9"/></svg>AI 增强</button>
+      </div>
+      <p id="gModeHint" style="font-size:13px;color:var(--ink-3);margin-top:8px"></p>
+    </div>
+    <div id="resultArea" style="display:none">
+      <div class="card">
+        <div class="h-title"><span class="bar"></span>生成结果</div>
+        <div class="h-sub" id="resMeta"></div>
+        <div class="score-grid" id="scoreGrid"></div>
+        <div class="avg-big">综合评分 <b id="resAvg">0</b><span style="color:var(--ink-3);font-size:13px">/ 10</span></div>
+        <div id="resSugs" style="margin-top:10px"></div>
+        <div style="margin-top:14px"><label class="f">选择版本</label>
+        <div class="ver-tabs" id="verTabs"></div></div>
+        <div id="holderArea" style="display:none;margin-top:6px">
+          <label class="f">模板变量（实时替换预览）</label>
+          <div id="holderInputs"></div>
+        </div>
+        <div class="prompt-box" id="resPrompt"></div>
+        <div class="actions">
+          <button class="btn small" id="actCopy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>复制</button>
+          <button class="btn small" id="actTxt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>下载 TXT</button>
+          <button class="btn small" id="actMd"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>下载 MD</button>
+          <button class="btn small" id="actJson"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/></svg>JSON</button>
+          <button class="btn small" id="actCard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>卡片图片</button>
+          <button class="btn small" id="actSave"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>存入历史</button>
+          <button class="btn small" id="actTpl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>加入模板</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 视图：模板 ===== -->
+<section class="view" id="view-templates">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <div class="h-title" style="margin-bottom:0"><span class="bar"></span>模板库</div>
+    <button class="btn small" id="tplNew"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新建模板</button>
+  </div>
+  <div class="searchbar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="tplSearch" placeholder="搜索模板…"></div>
+  <div class="chips" id="tplCats" style="margin-bottom:14px"></div>
+  <div id="tplList"></div>
+</section>
+
+<!-- ===== 视图：历史 ===== -->
+<section class="view" id="view-history">
+  <div class="recent-line" style="margin-top:0"><h2 style="font-size:17px">历史记录</h2><button class="btn ghost small" id="hisClear">清空</button></div>
+  <div class="searchbar" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="hisSearch" placeholder="搜索记录…"></div>
+  <div id="hisList" style="margin-top:4px"></div>
+</section>
+
+<!-- ===== 视图：设置 ===== -->
+<section class="view" id="view-settings">
+  <div class="card">
+    <div class="h-title"><span class="bar"></span>AI 接口</div>
+    <label class="f" for="sProvider">服务商</label>
+    <select id="sProvider"><option value="openai">ChatGPT (OpenAI)</option><option value="doubao">豆包（火山方舟）</option><option value="claude">Claude (Anthropic)</option><option value="gemini">Gemini (Google)</option></select>
+    <label class="f" for="sKey">API Key</label>
+    <input type="password" id="sKey" placeholder="留空则使用离线引擎（保存在本机浏览器）">
+    <label class="f" for="sBase">接口地址 Base URL</label>
+    <input type="text" id="sBase" placeholder="https://api.openai.com/v1">
+    <label class="f" for="sModel">模型名称</label>
+    <input type="text" id="sModel" placeholder="gpt-4o-mini">
+    <p style="font-size:13px;color:var(--ink-3);margin-top:8px">API Key 仅保存在本机浏览器 localStorage，只在点击「AI 增强」时发送给对应服务商；不配置也可完整使用离线功能。</p>
+  </div>
+  <div class="card">
+    <div class="h-title"><span class="bar"></span>默认参数</div>
+    <label class="f" for="sDefModel">默认目标模型</label>
+    <select id="sDefModel"></select>
+    <label class="f" for="sDefFw">默认框架</label>
+    <select id="sDefFw"></select>
+  </div>
+  <div class="card">
+    <div class="h-title"><span class="bar"></span>外观与数据</div>
+    <div class="set-row"><div class="info"><b>深色模式</b><p>切换深浅主题，即时生效</p></div><div class="set-seg" id="sDarkSeg"><button data-v="light">浅色</button><button data-v="dark">深色</button><button data-v="auto">跟随系统</button></div></div>
+    <div class="set-row"><div class="info"><b>数据备份</b><p>导出全部模板与历史（JSON）</p></div><button class="btn ghost small" id="sBackup">导出</button></div>
+    <div class="set-row"><div class="info"><b>恢复数据</b><p>从备份文件导入</p></div><button class="btn ghost small" id="sRestore">导入</button></div>
+    <div class="set-row"><div class="info"><b>清空历史</b><p>删除全部生成记录，不可恢复</p></div><button class="btn ghost small" id="sClear" style="color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,transparent)">清空</button></div>
+  </div>
+  <div class="card">
+    <div class="h-title"><span class="bar"></span>关于</div>
+    <p style="font-size:13.5px;color:var(--ink-2)">提示词工坊（PromptForge）v1.0 网页版 · 把需求变成结构化高质量提示词。<br>支持 CRISPE / RTF / BROKE / CO-STAR / RACE / APE 框架，六维质量评分，五版本输出，内置 10 个模板。数据默认保存在本机浏览器。</p>
+  </div>
+</section>
+</main>
+
+<div id="toast"></div>
+<div class="modal-mask" id="modalMask">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
+<!-- something todo: engine -->
+<!-- ===== JS：引擎与逻辑 ===== -->
+<script>
+/* ===== 数据与常量 ===== */
+var TASK_TYPES=[["writing","写作"],["coding","编程"],["painting","绘画"],["video","视频"],["marketing","营销"],["study","学习"],["data","数据分析"],["automation","自动化"],["testing","测试"],["game","游戏"],["office","办公"],["interview","面试"],["translate","翻译"],["other","其他"]];
+var MODELS=["ChatGPT (OpenAI)","Claude (Anthropic)","Gemini (Google)","豆包 (火山方舟)","Midjourney","Stable Diffusion","Cursor","本地/其他"];
+var FW_LIST=[["auto","自动选择"],["crispe","CRISPE"],["rtf","RTF"],["broke","BROKE"],["costar","CO-STAR"],["race","RACE"],["ape","APE"],["tag","TAG"],["clear","CLEAR"],["rise","RISE"],["self","SELF"],["custom","自定义"]];
+var FRAMEWORKS={
+  crispe:{name:"CRISPE",sections:[["role","能力与角色（Capacity & Role）"],["insight","背景洞察（Insight）"],["statement","任务陈述（Statement）"],["personality","风格个性（Personality）"],["experiment","实验要求（Experiment）"]]},
+  rtf:{name:"RTF",sections:[["role","角色（Role）"],["task","任务（Task）"],["format","输出格式（Format）"]]},
+  broke:{name:"BROKE",sections:[["background","背景（Background）"],["role","角色（Role）"],["objectives","目标（Objectives）"],["keyresults","关键结果（Key Results）"],["evolve","迭代改进（Evolve）"]]},
+  costar:{name:"CO-STAR",sections:[["context","上下文（Context）"],["objective","目标（Objective）"],["style","风格（Style）"],["tone","语气（Tone）"],["audience","受众（Audience）"],["response","响应格式（Response）"]]},
+  race:{name:"RACE",sections:[["role","角色（Role）"],["action","行动（Action）"],["context","背景（Context）"],["expectation","期望（Expectation）"]]},
+  ape:{name:"APE",sections:[["action","行动（Action）"],["purpose","目的（Purpose）"],["expectation","期望（Expectation）"]]},
+  tag:{name:"TAG",sections:[["task","任务（Task）"],["action","行动（Action）"],["goal","目标（Goal）"]]},
+  clear:{name:"CLEAR",sections:[["context","上下文（Context）"],["language","语言（Language）"],["expectation","期望（Expectation）"],["action","行动（Action）"],["result","结果（Result）"]]},
+  rise:{name:"RISE",sections:[["role","角色（Role）"],["input","输入（Input）"],["steps","步骤（Steps）"],["expectation","期望（Expectation）"]]},
+  self:{name:"SELF",sections:[["situation","情境（Situation）"],["example","示例（Example）"],["logic","逻辑（Logic）"],["format","格式（Format）"]]},
+  custom:{name:"自定义",sections:[["role","角色"],["task","任务"],["context","上下文"],["steps","执行步骤"],["format","输出格式"],["example","示例"],["constraints","约束条件"],["quality","质量要求"]]}
+};
+var ROLE_MAP={writing:"你是一位资深中文写作专家，精通公众号文章、小说、文案、论文、书评等多种文体，擅长结构设计与语言打磨",coding:"你是一位资深软件工程师，精通需求分析、架构设计、代码实现、调试与代码评审，代码规范且可维护",painting:"你是一位专业视觉设计师/插画师，精通构图、配色、光影与多种艺术风格，善于把文字转化为具体画面",video:"你是一位经验丰富的视频编导与短视频策划专家，精通分镜、运镜、节奏与信息密度控制",marketing:"你是一位资深营销策划专家，精通用户洞察、文案写作、活动策划与转化链路设计",study:"你是一位耐心且善于讲解的学习导师，擅长把复杂概念拆解成易理解的知识点并设计练习",data:"你是一位资深数据分析师，精通指标体系、统计方法、可视化呈现与业务归因",automation:"你是一位自动化与效率专家，擅长工作流设计、流程编排、批量任务与定时触发，方案可直接落地",testing:"你是一位资深测试工程师，精通测试用例设计、边界值分析、断言编写与覆盖率评估，善于发现潜在缺陷",game:"你是一位资深游戏攻略作者与玩家顾问，熟悉主流游戏机制、版本内容与玩家社区，擅长把复杂玩法讲清楚并给出可执行路线",office:"你是一位高效的职场办公专家，擅长报告、邮件、会议纪要、汇报材料的组织与表达",interview:"你是一位资深 HR 与面试辅导专家，熟悉岗位胜任力模型与常见面试问题",translate:"你是一位专业译者，精通中英互译，译文地道、准确、符合目标语言习惯",other:"你是一位专业且可靠的通用助理，善于理解需求并给出高质量结果"};
+var FORMAT_MAP={writing:"Markdown 格式，标题层级清晰，段落分明",coding:"给出可直接运行的代码，附必要的注释与说明",painting:"详细的分段画面描述，包含主体、构图、配色、光影、风格与镜头/参数建议",video:"分镜脚本表格：镜号、景别、画面、运镜、台词/旁白、时长、音效",marketing:"完整的营销方案/文案，包含核心卖点、目标受众、渠道建议与行动号召",study:"结构化的学习内容：知识点讲解 + 示例 + 练习 + 参考答案",data:"分析框架 + 指标口径 + 可视化图表建议 + 结论与建议",automation:"自动化方案：触发条件 + 执行步骤 + 工具/接口 + 异常处理 + 可验证结果",testing:"测试用例表格：编号 / 前置条件 / 操作步骤 / 输入数据 / 预期结果 / 优先级",game:"结构化攻略：结论先行 + 分步流程 + 技巧与误区 + 数据表格（如适用）",office:"正式、可直接套用的文档结构（Markdown）",interview:"结构化问答：问题 + 考察点 + 参考回答要点",translate:"译文 + 术语表 + 翻译说明",other:"结构化 Markdown 输出"};
+var STEPS_MAP={writing:["明确文章主题、核心观点与目标读者","搭建文章结构（开头钩子、主体论点、结尾行动号召）","撰写正文，注意段落节奏与金句","通读润色：语言、逻辑、长度与错别字"],coding:["明确输入、输出与边界条件","设计实现方案与数据结构","编写代码，遵循命名规范并处理异常","自测关键路径并给出运行示例"],painting:["确定主体、场景与情绪基调","规划构图与视觉重心","定义配色、光影与材质细节","给出可执行的画面描述（含参数/风格关键词）"],video:["确定视频主题、时长与平台调性","设计开场钩子与信息节奏","拆解分镜：画面、运镜、台词、音效","检查完整性与转化/完播要素"],marketing:["分析目标用户与痛点","提炼核心卖点与差异化","设计内容结构与行动号召","输出可直接发布的成品文案/方案"],study:["拆解知识点为小单元","用通俗语言讲解并举例","设计练习与自测问题","提供参考答案与易错点提醒"],data:["明确分析目标与业务口径","给出数据处理与分析方法","设计可视化呈现","输出结论、局限与下一步建议"],automation:["明确自动化目标与触发条件","梳理流程步骤并识别可自动化环节","设计执行方案（工具/接口/参数）","补充异常处理与结果验证方式"],testing:["拆解需求与功能点","设计正常与边界测试用例（等价类/边界值）","编写断言与预期结果","评估覆盖率并补充缺失场景"],game:["明确游戏、版本与攻略主题","梳理目标玩家与要解决的问题","按结论→流程→技巧组织内容","核对数据准确性并补充出处"],office:["明确场景与对象（收件人/听众）","组织信息结构（背景、要点、行动项）","撰写正式内容并控制篇幅","检查语气与错别字"],interview:["拆解岗位胜任力维度","设计行为面试问题（STAR 法则）","给出考察点与参考回答要点","补充追问与避坑建议"],translate:["理解原文语境与文体","逐段翻译并保持术语一致","通读润色译文流畅度","输出术语表与翻译说明"],other:["明确需求目标与交付物","制定执行步骤","逐步完成并检查质量","输出最终结果"]};
+var QUALITY_MAP={writing:"语言流畅、逻辑清晰、有记忆点；避免空话套话；篇幅符合要求",coding:"代码可运行、可读、可维护；正确处理边界与异常；符合语言惯例",painting:"画面具体可执行，风格一致，构图完整，细节丰富",video:"节奏紧凑、前三秒抓人、信息清晰、平台适配",marketing:"卖点清晰、有代入感、行动号召明确、可直接使用",study:"讲解通俗、循序渐进、有练习反馈、避免堆砌术语",data:"口径明确、方法合理、结论有据、图表可读",automation:"流程清晰、可落地、异常处理完整、步骤可复现",testing:"用例覆盖充分、边界清晰、预期明确、可执行",game:"结论可验证、步骤可执行、版本标注清楚、不编造数据",office:"正式得体、要点突出、可直接套用、无遗漏",interview:"问题有区分度、考察点明确、回答可落地",translate:"忠实原文、地道流畅、术语一致、无漏译",other:"结果准确、结构清晰、符合要求"};
+var DIMS=["清晰度","具体性","上下文","约束","格式","可执行性"];
+var BUILTIN_TPL=[
+{name:"公众号文章写作",desc:"从选题到成文的完整公众号写作提示词",cat:"写作",fw:"costar",content:"# 角色\n你是一位资深公众号写作专家，擅长爆款结构与语言打磨。\n\n# 任务\n围绕「{{主题}}」写一篇公众号文章。\n\n# 背景\n面向「{{受众}}」，希望达到「{{目标}}」；平台调性：公众号。\n\n# 步骤\n1. 先给出文章大纲（标题钩子、3-5 个论点、结尾行动号召）；\n2. 确认大纲后撰写全文；\n3. 通读润色，压缩冗余。\n\n# 输出格式\nMarkdown；正文 {{长度}} 字左右；标题给出 3 个备选。\n\n# 约束\n- 语言自然、避免 AI 腔；\n- 不使用 emoji；不编造数据。\n\n# 质量要求\n逻辑清晰、有记忆点、结尾有引导关注/转发的行动号召。"},
+{name:"写代码实现功能",desc:"让 AI 按需求写出可运行的代码",cat:"编程",fw:"crispe",content:"# 角色\n你是一位资深软件工程师。\n\n# 背景\n技术栈：{{技术栈}}；现有代码：{{现状}}；需要实现：{{功能}}。\n\n# 任务\n用 {{语言}} 实现「{{功能}}」，包含输入、输出与边界处理。\n\n# 风格\n代码规范、注释清晰、符合该语言惯例。\n\n# 实验\n先给出实现思路与关键数据结构，再输出代码；如有多种方案请对比说明。\n\n# 输出格式\n完整代码块 + 使用示例 + 复杂度说明。"},
+{name:"生成视频脚本（分镜）",desc:"生成带分镜表的短视频脚本",cat:"视频",fw:"broke",content:"# 背景\n平台：{{平台}}；主题：{{主题}}；时长：{{时长}}；目标：{{目标}}。\n\n# 角色\n你是一位短视频编导，擅长抓前 3 秒与节奏设计。\n\n# 目标\n产出一份可直接拍摄的分镜脚本。\n\n# 关键结果\n1. 开场钩子 3 秒内抓住注意力；\n2. 信息密度适中，无注水；\n3. 结尾有互动/关注引导。\n\n# 迭代改进\n指出脚本中最可能流失观众的点，并给出备选方案。\n\n# 输出格式\n表格：镜号 / 景别 / 画面描述 / 运镜 / 台词或旁白 / 时长 / 音效。"},
+{name:"营销文案（小红书）",desc:"生成小红书种草文案",cat:"营销",fw:"race",content:"# 角色\n你是一位小红书种草文案专家。\n\n# 行动\n为「{{产品/服务}}」写一篇种草笔记，目标人群「{{受众}}」，核心卖点「{{卖点}}」。\n\n# 背景\n小红书调性：真实感、场景化、有用；避免硬广感。\n\n# 期望\n- 标题 1 个主标题 + 3 个备选，带情绪词；\n- 正文含场景痛点→产品亮点→使用体验→行动号召；\n- 给出 5 个相关话题标签；\n- 长度 {{长度}} 字。\n\n# 约束\n不使用夸大违禁词；不编造功效；语言口语化。"},
+{name:"论文润色",desc:"对学术论文进行语言与逻辑润色",cat:"写作",fw:"costar",content:"# 角色\n你是一位学术编辑，熟悉中文学术写作规范。\n\n# 任务\n对以下论文片段进行润色：「{{论文片段}}」。\n\n# 上下文\n学科：{{学科}}；期刊/场合：{{目标期刊或场合}}；要求：保持原意，提升学术表达。\n\n# 风格\n严谨、简洁、术语准确。\n\n# 受众\n同行评审专家。\n\n# 响应格式\n逐条给出：原句 → 修改后 → 修改理由；最后给出整体评价与改进建议。"},
+{name:"面试准备（STAR 问答）",desc:"准备行为面试问题与回答要点",cat:"面试",fw:"costar",content:"# 角色\n你是一位资深 HR 面试辅导专家。\n\n# 任务\n针对岗位「{{岗位}}」，基于我的经历「{{经历}}」，准备高频面试问题与 STAR 回答要点。\n\n# 上下文\n我期望展示的能力：{{核心能力}}；简历中可能被追问的弱项：{{弱项}}。\n\n# 风格\n回答可落地、真实、不浮夸。\n\n# 受众\n面试官。\n\n# 响应格式\n问题 → 考察点 → STAR 参考回答（情境/任务/行动/结果）→ 追问预案。"},
+{name:"数据分析报告",desc:"数据分析方法与报告框架",cat:"学习",fw:"crispe",content:"# 角色\n你是一位资深数据分析师。\n\n# 背景\n业务：{{业务场景}}；数据：{{数据说明}}；疑问：{{要回答的问题}}。\n\n# 任务\n给出分析框架与结论，输出一份结构化的数据分析报告。\n\n# 风格\n口径明确、结论有数据支撑、避免因果混淆。\n\n# 实验\n如果数据不足以支撑结论，请明确说明并给出补充数据建议。\n\n# 输出格式\n背景与问题 → 指标口径 → 分析方法 → 核心发现 → 结论与建议 → 局限说明。"},
+{name:"会议纪要",desc:"把会议内容整理成结构化纪要",cat:"办公",fw:"rtf",content:"# 角色\n你是一位高效的职场助理。\n\n# 任务\n将以下会议内容整理为结构化纪要：「{{会议内容}}」。\n\n# 输出格式\n会议主题 / 时间 / 参会人 / 讨论要点 / 结论 / 行动项（负责人 + 截止时间）/ 待跟进问题。\n\n# 约束\n- 忠实记录，不添加未出现的内容；\n- 行动项必须标注负责人；\n- 语言简洁，使用要点式表达。"},
+{name:"学习计划生成",desc:"按目标拆解学习路径与计划",cat:"学习",fw:"ape",content:"# 行动\n为「{{学习主题}}」制定一份 {{周期}} 学习计划，我的基础：{{当前水平}}。\n\n# 目的\n目标是达到「{{目标水平}}」，每周可投入 {{每周时间}}。\n\n# 期望\n1. 按周拆解学习内容与练习；\n2. 每阶段给出可检验的里程碑；\n3. 推荐合适的学习资源；\n4. 指出常见误区。"},
+{name:"PPT 大纲设计",desc:"根据主题生成 PPT 大纲与分页要点",cat:"办公",fw:"custom",content:"# 角色\n你是一位 PPT 结构设计专家，擅长金字塔原理与视觉化表达。\n\n# 任务\n为「{{主题}}」设计一份 {{页数}} 页左右的 PPT 大纲。\n\n# 上下文\n受众：{{受众}}；场合：{{场合（汇报/路演/培训）}}；核心目标：{{目标}}。\n\n# 执行步骤\n1. 提炼 1 句核心信息（黄金圈：Why-How-What）；\n2. 设计封面与目录；\n3. 逐页给出标题 + 要点 + 配图建议。\n\n# 输出格式\n逐页大纲表格：页码 / 页面标题 / 核心要点 / 建议配图或图表。\n\n# 约束\n每页要点不超过 3 条；页面之间有逻辑递进。"},
+{name:"游戏攻略撰写",desc:"撰写结构清晰、新手可用的游戏攻略",cat:"游戏",fw:"costar",content:"# 角色\n你是一位资深游戏攻略作者，熟悉「{{游戏名}}」的核心机制、版本内容和玩家痛点，擅长把复杂机制讲得清晰易懂。\n\n# 任务\n撰写一份关于「{{主题/关卡/玩法}}」的完整攻略。\n\n# 上下文\n面向「{{受众（新手/进阶/速通玩家）}}」，希望达成「{{目标（通关/刷装备/速通等）}}」；当前版本：{{版本号（如适用）}}。\n\n# 风格\n步骤清晰、语言直白、术语首次出现时解释；必要时配数据。\n\n# 受众\n{{受众（新手/进阶/速通玩家）}}\n\n# 响应格式\n1. 一句话攻略结论（先给答案）；\n2. 前置准备（等级/装备/道具/队伍配置）；\n3. 分步流程（步骤 + 关键点/注意事项）；\n4. 进阶技巧与常见误区；\n5. 参考配装/加点/资源表（如有）。\n\n# 约束\n- 不编造版本数据和掉落概率；\n- 标注哪些是个人经验、哪些是版本确定内容；\n- 不使用 emoji。\n\n# 质量要求\n新手照做能上手，老玩家能挖到新信息，结论可验证。"},
+{name:"游戏攻略收集整理",desc:"从多个来源收集、去重、验证并整理成结构化攻略集",cat:"游戏",fw:"crispe",content:"# 角色\n你是一位严谨的游戏攻略资料管理员，擅长从多个渠道收集信息、交叉验证、去重归档。\n\n# 背景\n游戏：{{游戏名}}；攻略主题：{{主题（如某BOSS打法/任务链/资源点位）}}；信息来源：{{来源清单，如贴吧/维基/视频/社区}}。\n\n# 任务\n收集并整理「{{主题}}」的相关攻略，输出一份可信、去重、可直接使用的攻略合集。\n\n# 风格\n客观中立，标注信息来源与可信度，冲突信息并列说明而非强行合并。\n\n# 实验\n1. 先列出收集到的信息条目（含来源与时间）；\n2. 识别冲突/过期信息，标注版本与验证状态；\n3. 合并去重后输出最终整理版。\n\n# 输出格式\n攻略合集：\n- 概述与结论\n- 分主题条目（每条注明：要点 / 来源 / 版本 / 可信度）\n- 待验证清单（信息不足或冲突项）"},
+{name:"游戏开荒路线规划",desc:"规划开荒/探索路线与阶段里程碑",cat:"游戏",fw:"broke",content:"# 背景\n游戏：{{游戏名}}；开荒目标：{{目标（如通关/满级/全收集）}}；现有条件：{{已有等级/装备/资源}}；时间预算：{{每周可投入时间}}。\n\n# 角色\n你是一位开荒规划教练，擅长把长线目标拆成可执行路线。\n\n# 目标\n产出一份从当前进度到目标的阶段化开荒路线。\n\n# 关键结果\n1. 阶段划分清晰，每阶段有明确里程碑；\n2. 每阶段给出优先做的事与可跳过的部分；\n3. 标注关键资源/道具的获取时机；\n4. 预估总时长并给出弹性调整建议。\n\n# 迭代改进\n指出该路线中最容易卡住的点，并给出备选路线或补救方案。\n\n# 输出格式\n阶段表：阶段 / 目标 / 主要行动 / 关键资源 / 常见卡点 / 预计耗时。"}
+];
+/* ===== 引擎：需求解析 ===== */
+function parseRequirement(text){
+  var r={task:"",goal:"",context:"",format:"",constraint:"",tone:"",length:"",audience:"",keywords:[],taskType:"other"};
+  if(!text)return r;
+  var t=text.trim();
+  // 提取目标（为了…/目标是…）
+  var m=t.match(/(?:为了|目标是|目的是|希望|想|要)(.{2,40}?)(?:，|,|。|\.)/);
+  if(m)r.goal=m[1].trim();
+  // 提取长度（数字+字/词/页/分钟）
+  m=t.match(/(\d+[^\s，。,.]{0,6}(?:字|词|页|分钟|秒|行))/);
+  if(m)r.length=m[1];
+  // 提取受众（面向…/给…用/针对…）
+  m=t.match(/(?:面向|针对|给|写给|服务|适用于)(.{2,30}?)(?:的|使用|，|,|。|\.)/);
+  if(m)r.audience=m[1].trim();
+  // 提取格式（xxx格式/表格/json/markdown）
+  m=t.match(/(?:以|用|按)?([a-zA-Z\u4e00-\u9fa5]{2,12}(?:格式|表格|json|markdown|JSON|Markdown|列表|大纲|脚本))/);
+  if(m)r.format=m[1];
+  // 提取约束：否定组（不要…）+ 肯定组（必须…）
+  var cons=[];
+  var cm=t.match(/(?:不要|不用|避免|禁止|不许|不能|尽量不|无需|别)([^，。,.\s]{2,40})/g);
+  if(cm){for(var i=0;i<cm.length;i++)cons.push(cm[i]);}
+  var pm=t.match(/(?:必须|一定要|务必|要求)([^，。,.\s]{2,40})/g);
+  if(pm){for(var i=0;i<pm.length;i++){if(cons.indexOf(pm[i])<0)cons.push(pm[i]);}}
+  if(cons.length)r.constraint=cons.join("；");
+  // 提取语气
+  var tm=t.match(/(?:语气|风格)(?:要|应)?([^，。,.\s]{2,20})/);
+  if(tm)r.tone=tm[1];
+  // 提取关键词：按标点切分、停用词作边界再切分、去重取前 6 个
+  var stops=["的","了","和","与","在","是","要","帮","我","请","写","做","个","这","那","用","对","给","把","就","都","也","很","有","不","没","为","等","及","或","被","让","从","到","上","下","中","里","一个","一份","一篇","一段","一下","关于","面向","针对","希望","希望可以"];
+  var segs=t.split(/[，。,.\s!！?？;；:：、（）()【】\[\]"'“”]+/);
+  var kws=[];var seen={};
+  for(var i=0;i<segs.length&&kws.length<6;i++){
+    var parts=[segs[i].trim()];
+    stops.forEach(function(st){
+      var np=[];
+      parts.forEach(function(p){np=np.concat(p.split(st));});
+      parts=np;
+    });
+    for(var j=0;j<parts.length&&kws.length<6;j++){
+      var w=parts[j].trim();
+      if(w.length<2||w.length>12)continue;
+      if(stops.indexOf(w)>=0)continue;
+      if(seen[w])continue;
+      seen[w]=1;kws.push(w);
+    }
+  }
+  if(kws.length)r.keywords=kws;
+  // 任务类型识别
+  var kw=[
+    ["coding",["代码","编程","程序","函数","算法","bug","开发","接口","实现.*功能","python","爬虫","java","javascript","sql","go语言","rust","c\\+\\+","前端","后端","正则","抓取","shell","bash"]],
+    ["writing",["文章","公众号","小说","论文","书评","故事","标题","写作","润色","简历","起标题","取标题"]],
+    ["painting",["画","插画","海报","logo","头像","设计图","配图","分镜图"]],
+    ["video",["视频","短视频","脚本.*视频","分镜","口播","vlog","tvc"]],
+    ["marketing",["营销","推广","种草","广告","活动方案","促销","销售话术","社群"]],
+    ["study",["学习","教程","课程","讲解","练习","背单词","备考"]],
+    ["automation",["自动化","工作流","批量","定时","触发","流程","部署"]],
+    ["testing",["测试","用例","单元测试","断言","mock","覆盖率","边界值"]],
+    ["game",["游戏","攻略","开荒","关卡","副本","boss","装备","配装","我的世界","原神","通关","速通","存档"]],
+    ["data",["数据","分析","统计","指标","报表","可视化"]],
+    ["office",["会议纪要","邮件","汇报","周报","计划","方案","总结","ppt","演示文稿"]],
+    ["interview",["面试","岗位","hr","offer","求职"]],
+    ["translate",["翻译","译成","英文","中文版","日语"]]
+  ];
+  for(var i=0;i<kw.length;i++){
+    for(var j=0;j<kw[i][1].length;j++){
+      var re=new RegExp(kw[i][1][j]);
+      if(re.test(t)){r.taskType=kw[i][0];break;}
+    }
+    if(r.taskType!=="other")break;
+  }
+  // 任务主体：动词短语
+  var vm=t.match(/^(请|帮我|麻烦|求)?(给我)?(写|生成|做|设计|制作|翻译|整理|分析|制定|规划|润色|总结|解释|推荐|实现|搭建|编写|创建|输出|列出)(.{0,40})/);
+  if(vm){r.task=(vm[3]||"")+(vm[4]||"").split(/[，。,.]/)[0];}
+  if(!r.task)r.task=t.slice(0,40);
+  r.context=t;
+  return r;
+}
+
+/* ===== 引擎：框架选择 ===== */
+function pickFramework(req,pref){
+  if(pref&&pref!=="auto")return pref;
+  var map={coding:"crispe",writing:"costar",painting:"custom",video:"broke",marketing:"race",study:"ape",data:"crispe",automation:"clear",testing:"custom",game:"costar",office:"rtf",interview:"costar",translate:"custom",other:"custom"};
+  return map[req.taskType]||"custom";
+}
+
+/* ===== 引擎：生成器 ===== */
+function buildPrompt(req,fw,opts){
+  opts=opts||{};
+  var role=ROLE_MAP[req.taskType]||ROLE_MAP.other;
+  var lines=["# 角色",role,""];
+  if(fw==="custom"){
+    var customSections=[
+      ["任务",req.task||req.context,"你需要在下方输出中完成这个任务"],
+      ["上下文",req.context||"（补充背景信息，帮助模型理解场景）",""],
+      ["执行步骤",(STEPS_MAP[req.taskType]||STEPS_MAP.other).join("\n"),""],
+      ["输出格式",req.format||FORMAT_MAP[req.taskType]||FORMAT_MAP.other,""],
+      ["示例","（可选）提供一个符合要求的输出示例",""],
+      ["约束条件",req.constraint||"（列出不允许出现的内容或边界）",""],
+      ["质量要求",QUALITY_MAP[req.taskType]||QUALITY_MAP.other,""]
+    ];
+    for(var i=0;i<customSections.length;i++){
+      var s=customSections[i];
+      lines.push("## "+s[0],"");
+      if(s[2])lines.push(s[2]+"：");
+      lines.push(s[1],"");
+    }
+  }else{
+    var fr=FRAMEWORKS[fw];
+    for(var i=0;i<fr.sections.length;i++){
+      var key=fr.sections[i][0],head=fr.sections[i][1];
+      lines.push("## "+head,"");
+      lines.push(sectionBody(req,key,fw),"");
+    }
+  }
+  // 通用收尾
+  var tail=["# 输出要求","",(req.length?"- 篇幅："+req.length+"\n":"")+"- 语言："+(req.lang||"简体中文")+"\n- 直接输出最终结果，不要解释你的思考过程。\n"];
+  lines=lines.concat(tail);
+  var p=lines.join("\n");
+  p=p.replace(/\n{3,}/g,"\n\n").trim();
+  // 注入占位符补全
+  var holders=p.match(/\{\{([^}]+)\}\}/g)||[];
+  if(holders.length===0&&(req.goal||req.audience||req.length||req.tone)){
+    // 无模板占位符时，把解析出的要素以额外段落并入
+    var extra=[];
+    if(req.goal)extra.push("目标："+req.goal);
+    if(req.audience)extra.push("受众："+req.audience);
+    if(req.tone)extra.push("语气："+req.tone);
+    if(extra.length){p=p.replace(/# 输出要求/,extra.join("\n")+"\n\n# 输出要求");}
+  }
+  return p;
+}
+function sectionBody(req,key,fw){
+  var t=req.task||req.context;
+  switch(key){
+    case "role":return ROLE_MAP[req.taskType]||ROLE_MAP.other;
+    case "insight":return "背景："+(req.context?req.context.slice(0,80)+"…":"（补充相关背景，帮助我理解你要什么）")+"；目标："+(req.goal||"（明确你期望的结果）");
+    case "statement":return (req.task?("任务：完成「"+req.task+"」。"):"任务：完成以下需求：\n"+req.context)+"\n步骤："+(STEPS_MAP[req.taskType]||STEPS_MAP.other).join("；");
+    case "personality":return "风格："+(req.tone||"专业、清晰、直接")+"；"+(req.audience?"面向受众："+req.audience+"；":"");
+    case "experiment":return "请在正式输出前，先给出你的实现思路或大纲；如存在多种可行方案，请对比并推荐其一。";
+    case "task":case "action":return (req.task?("任务："+req.task):"任务：\n"+req.context)+"\n步骤：\n"+(STEPS_MAP[req.taskType]||STEPS_MAP.other).map(function(s,i){return (i+1)+". "+s;}).join("\n");
+    case "format":return "输出格式："+(req.format||FORMAT_MAP[req.taskType]||FORMAT_MAP.other);
+    case "background":return "背景："+(req.context?req.context.slice(0,120)+"…":"（补充背景信息）");
+    case "objectives":return "目标："+(req.goal||("完成「"+(req.task||"本次任务")+"」并达到可用质量"));
+    case "keyresults":return "关键结果：\n1. 输出完整、结构清晰；\n2. "+(QUALITY_MAP[req.taskType]||QUALITY_MAP.other)+"；\n3. "+(req.length?"篇幅控制在 "+req.length+"。":"篇幅适中，不注水。");
+    case "evolve":return "最后请指出输出中可能存在的问题，并给出改进版本或可替换的变量。";
+    case "context":return "上下文："+(req.context?req.context:"（补充场景背景，让模型理解上下文）")+(req.goal?"；目标："+req.goal:"");
+    case "objective":return "目标："+(req.goal||("完成「"+(req.task||"本次任务")+"」"));
+    case "style":return "风格："+(req.tone||"专业清晰")+"；"+(req.audience?"受众："+req.audience+"；":"")+"语言："+(req.lang||"简体中文");
+    case "tone":return "语气："+(req.tone||"自然、有分寸")+"；避免："+(req.constraint||"空话套话、AI 腔");
+    case "audience":return "受众："+(req.audience||"目标读者/使用者");
+    case "response":return "响应格式："+(req.format||FORMAT_MAP[req.taskType]||FORMAT_MAP.other)+(req.length?"；篇幅："+req.length:"");
+    case "expectation":return "期望：\n1. 直接输出最终成品；\n2. "+(QUALITY_MAP[req.taskType]||QUALITY_MAP.other)+"；\n3. "+(req.length?"篇幅 "+req.length+"。":"结构完整、重点突出。");
+    case "purpose":return "目的："+(req.goal||("产出「"+(req.task||"本次任务")+"」的高质量结果"));
+    case "steps":return "执行步骤：\n"+(STEPS_MAP[req.taskType]||STEPS_MAP.other).map(function(s,i){return (i+1)+". "+s;}).join("\n");
+    case "example":return "示例：\n（按上方格式给出 1 个示例，展示理想输出形态）";
+    case "constraints":return "约束条件：\n- "+(req.constraint||"不编造事实，不输出与任务无关内容")+"\n- 不使用 emoji（除非要求）；\n- 语言自然，避免 AI 腔。";
+    case "quality":return "质量要求：\n- "+(QUALITY_MAP[req.taskType]||QUALITY_MAP.other)+"\n- 逻辑连贯、无重复；\n- 符合字数/篇幅要求。";
+    case "goal":return "目标："+(req.goal||("完成「"+(req.task||"本次任务")+"」并交付可用结果"));
+    case "language":return "语言："+(req.lang||"简体中文")+"；如无特殊要求，使用与需求一致的语言。";
+    case "result":return "结果要求：\n- "+(QUALITY_MAP[req.taskType]||QUALITY_MAP.other)+"\n- "+(req.length?"篇幅控制在 "+req.length+"。":"结构完整、重点突出，可直接使用。");
+    case "input":return "输入：\n"+(req.task||req.context||"（描述待处理的内容、素材或数据）")+(req.format?"\n输出格式："+req.format:"");
+    case "situation":return "情境："+(req.context?req.context:"（描述当前场景、背景与约束条件）");
+    case "logic":return "逻辑要求：结构清晰、因果自洽、步骤可复现；"+(req.constraint?"约束："+req.constraint:"避免逻辑跳跃与空话套话。");
+    default:return "";
+  }
+}
+
+/* ===== 引擎：六维评分 ===== */
+function qualityScore(p,req){
+  if(!p)return {dims:[0,0,0,0,0,0],avg:0,sugs:[]};
+  var sugs=[];
+  function has(re){return re.test(p);}
+  var d=[];
+  // 清晰度：有角色 + 任务动词
+  var clarity=3;
+  if(has(/# 角色/))clarity+=2;else sugs.push("缺少明确的「角色」设定，模型不知道以什么身份作答。");
+  if(has(/(任务|statement|Task)/))clarity+=2;else sugs.push("缺少明确的任务陈述，建议一句话说清要做什么。");
+  if(has(/步骤|Steps|action/i))clarity+=1;
+  if(clarity>10)clarity=10;d.push(clarity);
+  // 具体性：有具体对象/数字/示例
+  var spec=3;
+  if(has(/\{\{/))spec+=1;
+  if(has(/\{\{[^}]+\}\}/))spec+=1;
+  if(req&&req.keywords&&req.keywords.length)spec+=1;
+  if(has(/\d+/))spec+=2;
+  if(has(/示例|example/i))spec+=2;
+  if(has(/[\u4e00-\u9fa5]{4,}/))spec+=1;
+  if(spec>10)spec=10;d.push(spec);
+  // 上下文：有背景
+  var ctx=3;
+  if(has(/背景|context|insight|上下文/i))ctx+=4;
+  if(has(/受众|audience/i))ctx+=2;
+  if(has(/语言/))ctx+=1;
+  if(ctx>10)ctx=10;d.push(ctx);
+  // 约束：有约束/边界
+  var con=3;
+  if(has(/约束|constraint|避免|不要|禁止/i))con+=4;
+  if(has(/输出要求|格式/i))con+=2;
+  if(has(/不使用|不编造/))con+=1;
+  if(con>10)con=10;d.push(con);
+  // 格式：有格式描述
+  var fmt=3;
+  if(has(/格式|format|Markdown|表格|JSON/i))fmt+=5;
+  if(has(/输出/))fmt+=2;
+  if(fmt>10)fmt=10;d.push(fmt);
+  // 可执行性：有步骤 + 质量要求
+  var exe=3;
+  if(has(/步骤|Steps/i))exe+=3;
+  if(has(/质量|quality/i))exe+=2;
+  if(has(/直接输出|最终结果/))exe+=2;
+  if(exe>10)exe=10;d.push(exe);
+  var avg=Math.round(d.reduce(function(a,b){return a+b;},0)/6*10)/10;
+  if(!has(/\{\{[^}]+\}\}/))sugs.push("建议把「主题/受众」等写成 {{变量}}，复用性更强");
+  if(avg>=8)sugs.unshift("提示词结构完整，可直接使用。");
+  else if(avg<6)sugs.push("建议补充「目标」与「输出格式」，模型回答会更贴近需求。");
+  return {dims:d,avg:avg,sugs:sugs};
+}
+
+/* ===== 引擎：多版本 ===== */
+function makeVersions(base,req){
+  var standard=base;
+  var detailed="> 详细版：以下提示词适合需要模型深度思考、逐步展开的场景。\n\n"+base;
+  var brief="你是一名"+(ROLE_MAP[req.taskType]||ROLE_MAP.other).replace(/^你是一位/,"").split("，")[0]+"。任务："+(req.task||req.context||"按需求输出")+"。"+(req.format?("输出格式："+req.format+"。 "):"")+(req.constraint?("约束："+req.constraint+"。"):"")+"直接输出结果。";
+  var pro="作为领域专家，以最高标准执行以下任务。\n\n"+base+"\n\n# 附加要求\n- 输出必须达到可直接交付的水平；\n- 主动识别并修正潜在问题；\n- 如信息不足，先提出澄清问题再输出。";
+  var casual=(req.tone?("用"+req.tone+"的语气，")+"":"")+"口语化地完成这个任务："+(req.task||req.context)+"。说人话，别端着，但该有的信息一点不能少。"+(req.length?"控制在"+req.length+"。":"");
+  var steps=(STEPS_MAP[req.taskType]||STEPS_MAP.other).map(function(s,i){return (i+1)+". "+s;}).join("\n");
+  var chain="请你以思维链方式完成以下任务，逐步推理并说明依据：\n\n"+base+"\n\n# 思维链要求\n"+steps+"\n每一步先说明推理依据（为什么这样做），再输出该步结果；最后汇总为可直接使用的最终成品。";
+  var fewshot="先阅读下面的参考示例，理解理想输出的形态与质量，再完成正式任务。\n\n# 参考示例\n（此处粘贴一个符合要求的输出样例，例如同类型任务的一份成品）\n\n# 正式任务\n\n"+base+"\n\n请模仿示例的结构与质量完成正式任务，不要输出示例本身。";
+  var rolePlay="现在请以第一人称扮演「"+(ROLE_MAP[req.taskType]||ROLE_MAP.other).replace(/^你是一位/,"").split("，")[0]+"」，用职业口吻直接完成以下任务：\n\n"+base+"\n\n# 扮演要求\n- 以从业者身份与口吻输出，带真实工作细节；\n- 直接输出成品，不要给出建议或解释。";
+  return {
+    standard:standard,
+    detailed:detailed,
+    brief:brief,
+    pro:pro,
+    casual:casual,
+    chain:chain,
+    fewshot:fewshot,
+    rolePlay:rolePlay
+  };
+}
+/* ===== 应用：状态 ===== */
+var LS={settings:"pf_settings_v1",histKey:"pf_history_v1",tpls:"pf_tpls_v1"};
+function load(key,def){try{var v=localStorage.getItem(key);return v?JSON.parse(v):def;}catch(e){return def;}}
+function save(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+var settings=load(LS.settings,{apiKey:"",baseUrl:"https://api.openai.com/v1",provider:"openai",model:"gpt-4o-mini",dark:"auto",defModel:"ChatGPT (OpenAI)",defFw:"auto"});
+var hist=load(LS.histKey,[]);
+var tpls=load(LS.tpls,BUILTIN_TPL.map(function(t,i){var c={};for(var k in t)c[k]=t[k];c.id="b"+i;c.builtin=true;c.fav=false;return c;}));
+var cur={fw:"auto",version:"standard",taskType:"auto",result:null,lastSource:""};
+
+/* ===== 应用：主题 ===== */
+function applyTheme(){
+  var d=settings.dark;
+  var dark=d==="dark"||(d==="auto"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.body.setAttribute("data-theme",dark?"dark":"light");
+  var seg=document.getElementById("sDarkSeg");
+  if(seg){var bs=seg.querySelectorAll("button");for(var i=0;i<bs.length;i++)bs[i].classList.toggle("on",bs[i].dataset.v===settings.dark);}
+}
+(function(){
+  var mm=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)");
+  if(!mm)return;
+  var onChange=function(){if(settings.dark==="auto")applyTheme();};
+  if(mm.addEventListener)mm.addEventListener("change",onChange);
+  else if(mm.addListener)mm.addListener(onChange);
+})();
+
+/* ===== 应用：路由 ===== */
+function go(view){
+  var vs=document.querySelectorAll(".view");
+  for(var i=0;i<vs.length;i++)vs[i].classList.toggle("on",vs[i].id==="view-"+view);
+  var ns=document.querySelectorAll("#nav button");
+  for(var i=0;i<ns.length;i++)ns[i].classList.toggle("on",ns[i].dataset.view===view);
+  if(view==="templates")renderTemplates();
+  if(view==="history")renderHistory();
+  if(view==="home")renderHome();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",function(){
+  var h=location.hash.replace("#","")||"home";
+  if(["home","generate","templates","history","settings"].indexOf(h)>=0)go(h);
+});
+
+/* ===== 工具：Toast / 复制 / 下载 ===== */
+var toastTimer=null;
+function toast(msg){
+  var el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},2200);
+}
+function copyText(t){
+  if(navigator.clipboard&&window.isSecureContext){
+    return navigator.clipboard.writeText(t).then(function(){toast("已复制到剪贴板");},function(){legacyCopy(t);});
+  }
+  legacyCopy(t);return Promise.resolve();
+}
+function legacyCopy(t){
+  var ta=document.createElement("textarea");ta.value=t;
+  ta.style.position="fixed";ta.style.top="-999px";ta.style.opacity="0";
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand("copy");toast("已复制到剪贴板");}catch(e){toast("复制失败，请手动选择复制");}
+  document.body.removeChild(ta);
+}
+function download(name,content,type){
+  var blob=new Blob([content],{type:type||"text/plain;charset=utf-8"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},800);
+}
+function fmtTime(ts){
+  var d=new Date(ts);function p(n){return n<10?"0"+n:n;}
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function taskName(id){for(var i=0;i<TASK_TYPES.length;i++)if(TASK_TYPES[i][0]===id)return TASK_TYPES[i][1];return "其他";}
+
+/* ===== 应用：生成页渲染 ===== */
+function renderTaskChips(){
+  var box=document.getElementById("gTaskChips");
+  box.innerHTML='<button class="chip'+(cur.taskType==="auto"?" on":"")+'" data-task="auto">自动识别</button>'+TASK_TYPES.map(function(t){
+    return '<button class="chip'+(cur.taskType===t[0]?" on":"")+'" data-task="'+t[0]+'">'+t[1]+"</button>";
+  }).join("");
+}
+function renderSelects(){
+  document.getElementById("gModel").innerHTML=MODELS.map(function(m){
+    return '<option'+(m===settings.defModel?" selected":"")+">"+m+"</option>";
+  }).join("");
+  document.getElementById("gFw").innerHTML=FW_LIST.map(function(f){
+    return '<option value="'+f[0]+'"'+(f[0]===settings.defFw?" selected":"")+">"+f[1]+"</option>";
+  }).join("");
+  document.getElementById("sDefModel").innerHTML=MODELS.map(function(m){
+    return '<option'+(m===settings.defModel?" selected":"")+">"+m+"</option>";
+  }).join("");
+  document.getElementById("sDefFw").innerHTML=FW_LIST.map(function(f){
+    return '<option value="'+f[0]+'"'+(f[0]===settings.defFw?" selected":"")+">"+f[1]+"</option>";
+  }).join("");
+}
+function renderModeHint(){
+  document.getElementById("gModeHint").textContent=settings.apiKey
+    ?"已配置 "+(settings.provider==="openai"?"OpenAI 兼容接口":settings.provider)+"：可点击「AI 增强」在线精修提示词"
+    :"离线模式：未配置 API Key，生成完全在本机完成。";
+}
+
+/* ===== 应用：生成流程 ===== */
+function runGenerate(source){
+  var src=(source||document.getElementById("gSource").value||"").trim();
+  if(!src){toast("请先输入需求");return;}
+  var req=parseRequirement(src);
+  var selTask=document.getElementById("gTaskChips").querySelector(".chip.on");
+  if(selTask&&selTask.dataset.task!=="auto"){
+    req.taskType=selTask.dataset.task;
+  }
+  req.goal=req.goal||document.getElementById("gGoal").value.trim();
+  req.audience=req.audience||document.getElementById("gAud").value.trim();
+  req.tone=req.tone||document.getElementById("gTone").value.trim();
+  req.length=req.length||document.getElementById("gLen").value.trim();
+  req.format=req.format||document.getElementById("gFmt").value.trim();
+  req.constraint=req.constraint||document.getElementById("gCons").value.trim();
+  req.lang=document.getElementById("gLang").value;
+  var model=document.getElementById("gModel").value;
+  var fw=document.getElementById("gFw").value;
+  var fwKey=pickFramework(req,fw);
+  var base=buildPrompt(req,fwKey,{});
+  var versions=makeVersions(base,req);
+  var score=qualityScore(base,req);
+  cur.result={req:req,fw:fwKey,versions:versions,score:score,model:model,time:Date.now(),source:src};
+  renderResult();
+  document.getElementById("resultArea").style.display="block";
+  document.getElementById("resultArea").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderResult(){
+  var r=cur.result;if(!r)return;
+  var fwName=(FRAMEWORKS[r.fw]||FRAMEWORKS.custom).name;
+  document.getElementById("resMeta").textContent="框架："+fwName+" · 任务："+taskName(r.req.taskType)+" · 目标模型："+r.model+" · "+fmtTime(r.time);
+  var d=r.score.dims;
+  document.getElementById("scoreGrid").innerHTML=DIMS.map(function(n,i){
+    return '<div class="score-row"><span class="name">'+n+'</span><div class="score-track"><div class="score-fill" style="width:'+(d[i]*10)+'%"></div></div><span class="score-num">'+d[i]+".0</span></div>";
+  }).join("");
+  document.getElementById("resAvg").textContent=r.score.avg;
+  document.getElementById("resSugs").innerHTML=r.score.sugs.map(function(s){
+    return '<div class="sug"><i>i</i><span>'+esc(s)+"</span></div>";
+  }).join("");
+  var tabs=document.getElementById("verTabs");
+  var vNames=[["standard","标准版"],["detailed","详细版"],["brief","精简版"],["pro","专业版"],["casual","口语化"],["chain","思维链"],["fewshot","少样本"],["rolePlay","角色扮演"]];
+  if(r.versions.ai)vNames.push(["ai","AI 增强版"]);
+  tabs.innerHTML=vNames.map(function(v){
+    return '<button data-v="'+v[0]+'" class="'+(cur.version===v[0]?"on":"")+'">'+v[1]+"</button>";
+  }).join("");
+  // 模板占位符输入区
+  var ha=document.getElementById("holderArea");
+  if(r.holders&&r.holders.length){
+    ha.style.display="block";
+    document.getElementById("holderInputs").innerHTML=r.holders.map(function(h){
+      var val=(r.hvals&&r.hvals[h.name])?esc(r.hvals[h.name]):"";
+      return '<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:96px;flex:none;font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.name)+'</span><input type="text" data-holder="'+esc(h.name)+'" placeholder="填写 '+esc(h.name)+'…" value="'+val+'"></div>';
+    }).join("");
+  }else{
+    ha.style.display="none";
+  }
+  showVersion(cur.version);
+}
+function showVersion(v){
+  cur.version=v;
+  var btns=document.getElementById("verTabs").querySelectorAll("button");
+  for(var i=0;i<btns.length;i++)btns[i].classList.toggle("on",btns[i].dataset.v===v);
+  var text=cur.result.versions[v]||cur.result.versions.standard;
+  var hv=cur.result.hvals||{};
+  text=text.replace(/\{\{([^}]+)\}\}/g,function(m,n){
+    return (hv[n]!==undefined&&hv[n]!=="")?hv[n]:m;
+  });
+  document.getElementById("resPrompt").textContent=text;
+  renderHolderPanel();
+}
+
+/* ===== 应用：模板变量面板 ===== */
+function renderHolderPanel(){
+  var area=document.getElementById("resultArea");
+  var panel=document.getElementById("holderPanel");
+  if(!cur.result||!cur.version)return;
+  var text=cur.result.versions[cur.version]||"";
+  var hs=text.match(/\{\{([^}]+)\}\}/g)||[];
+  var names=[];
+  hs.forEach(function(h){var n=h.slice(2,-2);if(names.indexOf(n)<0)names.push(n);});
+  if(!names.length){if(panel)panel.style.display="none";return;}
+  if(!panel){
+    panel=document.createElement("div");
+    panel.id="holderPanel";
+    panel.className="card";
+    panel.style.marginBottom="14px";
+    area.insertBefore(panel,area.firstChild);
+  }
+  panel.style.display="block";
+  var hv=cur.result.hvals||{};
+  panel.innerHTML='<div class="h-title"><span class="bar"></span>模板变量</div>'+
+    names.map(function(n){
+      var val=hv[n]?esc(hv[n]):"";
+      return '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap"><span style="width:96px;flex:none;font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{'+esc(n)+'}}</span><input type="text" data-holder="'+esc(n)+'" placeholder="填写 '+esc(n)+'…" value="'+val+'" style="flex:1;min-width:160px"></div>';
+    }).join("")+
+    '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+    '<button class="btn small" id="hpApply">应用到当前提示词</button>'+
+    '<button class="btn small ghost" id="hpClear">清空填写</button></div>';
+  var apply=panel.querySelector("#hpApply");
+  apply.onclick=function(){
+    if(!cur.result)return;
+    var inputs=panel.querySelectorAll("input[data-holder]");
+    var v=cur.version;
+    var text=cur.result.versions[v]||"";
+    for(var i=0;i<inputs.length;i++){
+      var inp=inputs[i],n=inp.dataset.holder,val=inp.value.trim();
+      cur.result.hvals=cur.result.hvals||{};
+      cur.result.hvals[n]=val;
+      if(val){
+        var re=new RegExp("\\{\\{\\s*"+n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\}\\}","g");
+        text=text.replace(re,val);
+      }
+    }
+    cur.result.versions[v]=text;
+    toast("已应用到当前提示词");
+    showVersion(v);
+  };
+  var clear=panel.querySelector("#hpClear");
+  clear.onclick=function(){
+    var inputs=panel.querySelectorAll("input[data-holder]");
+    for(var i=0;i<inputs.length;i++)inputs[i].value="";
+    if(cur.result)cur.result.hvals={};
+    toast("已清空填写");
+  };
+}
+
+/* ===== 应用：结果操作 ===== */
+function currentPrompt(){return cur.result?cur.result.versions[cur.version]||cur.result.versions.standard:"";}
+function cardImage(){
+  var r=cur.result;if(!r)return;
+  var W=900,H=560;var cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  var g=cv.getContext("2d");
+  var dark=document.body.getAttribute("data-theme")==="dark";
+  g.fillStyle=dark?"#171b2a":"#ffffff";g.fillRect(0,0,W,H);
+  g.fillStyle="#4f46e5";g.fillRect(0,0,W,8);
+  g.fillStyle=dark?"#e8ebf4":"#1d2536";
+  g.font="700 34px -apple-system,'PingFang SC',sans-serif";
+  g.fillText("提示词工坊 · PromptForge",32,70);
+  g.font="400 18px -apple-system,'PingFang SC',sans-serif";
+  g.fillStyle=dark?"#7c869e":"#7a8499";
+  g.fillText((FRAMEWORKS[r.fw]||{}).name+" 框架 · 综合评分 "+r.score.avg+"/10",32,100);
+  var p=currentPrompt();var lines=p.split("\n");
+  g.fillStyle=dark?"#a7b0c4":"#5a6578";
+  g.font="15px 'SFMono-Regular',Consolas,monospace";
+  var y=140,shown=0;
+  for(var i=0;i<lines.length&&y<500;i++){
+    var seg=lines[i].slice(0,64);
+    if(seg){(function(yy,ss){g.fillText(ss,32,yy);})(y,seg);y+=26;shown++;}
+    if(shown>13)break;
+  }
+  g.fillStyle=dark?"#7c869e":"#a3aabe";
+  g.font="400 15px -apple-system,'PingFang SC',sans-serif";
+  g.fillText("复制并粘贴到任意 AI 对话中使用 · "+(r.req.source||"").slice(0,22),32,H-40);
+  var url=cv.toDataURL("image/png");
+  var a=document.createElement("a");a.href=url;a.download="prompt-card-"+Date.now()+".png";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  toast("提示词卡片已生成");
+}
+
+/* ===== 应用：历史 ===== */
+function addHistory(source,fw,prompt,avg){
+  hist.unshift({id:"h"+Date.now(),source:source,fw:fw,prompt:prompt,avg:avg,time:Date.now(),fav:false,pin:false,tags:[]});
+  if(hist.length>200)hist.pop();
+  save(LS.histKey,hist);
+}
+function renderHistory(){
+  var kw=(document.getElementById("hisSearch").value||"").trim().toLowerCase();
+  var list=hist.filter(function(h){return !kw||h.source.toLowerCase().indexOf(kw)>=0||h.prompt.toLowerCase().indexOf(kw)>=0;});
+  list.sort(function(a,b){return (b.pin?1:0)-(a.pin?1:0)||b.time-a.time;});
+  var box=document.getElementById("hisList");
+  if(!list.length){box.innerHTML='<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg><div>暂无记录，去首页生成第一条提示词吧</div></div>';return;}
+  box.innerHTML=list.map(function(h){
+    var fwName=(FRAMEWORKS[h.fw]||{name:h.fw}).name;
+    return '<div class="his-card">'+
+      '<div class="row"><span class="name" title="'+esc(h.source)+'">'+esc(h.source.slice(0,46))+'</span>'+
+      '<span class="tag">'+esc(fwName)+'</span><span class="tag">'+h.avg+'/10</span>'+
+      '<button class="icon-btn'+(h.pin?" on":"")+'" data-act="pin" data-id="'+h.id+'" title="置顶"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5M6 3h12l-1 9H7zM7 12l-1 4h12l-1-4"/></svg></button>'+
+      '<button class="icon-btn'+(h.fav?" on":"")+'" data-act="fav" data-id="'+h.id+'" title="收藏"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button>'+
+      '<button class="icon-btn" data-act="tpl" data-id="'+h.id+'" title="存为模板"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>'+
+      '<button class="icon-btn danger" data-act="del" data-id="'+h.id+'" title="删除"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>'+
+      '</div><div class="meta">'+fmtTime(h.time)+"</div>"+
+      '<div class="prompt-box" style="margin-top:8px;max-height:150px">'+esc(h.prompt)+"</div>"+
+      '<button class="btn small ghost" style="margin-top:8px" data-act="use" data-id="'+h.id+'">再次使用</button>'+
+      "</div>";
+  }).join("");
+}
+function hisAction(id,act){
+  var h=hist.find(function(x){return x.id===id;});if(!h)return;
+  if(act==="del"){hist=hist.filter(function(x){return x.id!==id;});toast("已删除");}
+  if(act==="fav"){h.fav=!h.fav;toast(h.fav?"已收藏":"已取消收藏");}
+  if(act==="pin"){h.pin=!h.pin;toast(h.pin?"已置顶":"已取消置顶");}
+  if(act==="tpl"){
+    openTplModal({name:h.source.replace(/^模板：「|」$/g,"").trim().slice(0,20),desc:"从历史记录保存",cat:"自定义",fw:h.fw,content:h.prompt});
+    return;
+  }
+  if(act==="use"){useSource(h.source);}
+  save(LS.histKey,hist);renderHistory();
+}
+
+/* ===== 应用：模板 ===== */
+var tplFilter={kw:"",cat:"全部"};
+function renderTemplates(){
+  var cats=["全部"];tpls.forEach(function(t){if(cats.indexOf(t.cat)<0)cats.push(t.cat);});
+  document.getElementById("tplCats").innerHTML=cats.map(function(c){
+    return '<button class="chip'+(tplFilter.cat===c?" on":"")+'" data-cat="'+esc(c)+'">'+c+"</button>";
+  }).join("");
+  var kw=tplFilter.kw.toLowerCase();
+  var list=tpls.filter(function(t){
+    return (tplFilter.cat==="全部"||t.cat===tplFilter.cat)&&(!kw||(t.name+" "+t.desc+" "+t.content).toLowerCase().indexOf(kw)>=0);
+  });
+  var box=document.getElementById("tplList");
+  if(!list.length){box.innerHTML='<div class="empty"><div>没有匹配的模板</div></div>';return;}
+  box.innerHTML=list.map(function(t){
+    return '<div class="tpl-card">'+
+      '<div class="row"><span class="name">'+esc(t.name)+'</span>'+
+      '<span class="tag">'+esc(t.cat)+"</span><span class=\"tag\">"+(FRAMEWORKS[t.fw]||{name:t.fw}).name+"</span>"+
+      '<button class="icon-btn'+(t.fav?" on":"")+'" data-act="fav" data-id="'+t.id+'" title="收藏"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button>'+
+      (t.builtin?"":'<button class="icon-btn danger" data-act="del" data-id="'+t.id+'" title="删除"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>')+
+      '</div><div class="desc">'+esc(t.desc)+'</div><div class="meta">内容片段：'+esc(t.content.slice(0,52))+"…</div>"+
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+      '<button class="btn small" data-act="use" data-id="'+t.id+'">使用此模板</button>'+
+      '<button class="btn small ghost" data-act="preview" data-id="'+t.id+'">预览</button>'+
+      "</div></div>";
+  }).join("");
+}
+function tplAction(id,act){
+  var t=tpls.find(function(x){return x.id===id;});if(!t)return;
+  if(act==="fav"){t.fav=!t.fav;save(LS.tpls,tpls);toast(t.fav?"已收藏":"已取消收藏");renderTemplates();}
+  if(act==="del"){if(t.builtin){toast("内置模板不可删除");return;}tpls=tpls.filter(function(x){return x.id!==id;});save(LS.tpls,tpls);toast("已删除");renderTemplates();}
+  if(act==="preview"){showModal('<h3>'+esc(t.name)+'</h3><div class="prompt-box">'+esc(t.content)+"</div>"+'<div class="row-actions"><button class="btn ghost" id="mClose">关闭</button><button class="btn" id="mUse">使用此模板</button></div>',t);}
+  if(act==="use"){useTemplate(t);}
+}
+function useTemplate(t){
+  go("generate");
+  document.getElementById("gSource").value="";
+  document.getElementById("gGoal").value="";document.getElementById("gAud").value="";
+  document.getElementById("gTone").value="";document.getElementById("gLen").value="";
+  document.getElementById("gFmt").value="";document.getElementById("gCons").value="";
+  var modelEl=document.getElementById("gModel");modelEl.value=settings.defModel;
+  document.getElementById("gFw").value=t.fw;
+  var holders=(t.content.match(/\{\{([^}]+)\}\}/g)||[]);
+  var hnames=[];holders.forEach(function(h){var n=h.slice(2,-2);if(hnames.indexOf(n)<0)hnames.push(n);});
+  var req=parseRequirement("使用模板："+t.name);
+  req.taskType="other";
+  var versions=makeVersions(t.content,req);
+  var score=qualityScore(t.content,req);
+  cur.result={req:req,fw:t.fw,versions:versions,score:score,model:settings.defModel,time:Date.now(),source:"模板：「"+t.name+"」",holders:hnames.map(function(n){return {name:n};}),hvals:{}};
+  cur.version="standard";
+  renderResult();
+  document.getElementById("resultArea").style.display="block";
+  document.getElementById("resultArea").scrollIntoView({behavior:"smooth",block:"start"});
+  if(hnames.length){toast("模板已载入：填写上方变量后实时替换预览");}
+  else{toast("模板已载入，可直接复制使用");}
+}
+function useSource(s){
+  go("generate");
+  document.getElementById("gSource").value=s;
+  document.getElementById("gGoal").value="";document.getElementById("gAud").value="";
+  document.getElementById("gTone").value="";document.getElementById("gLen").value="";
+  document.getElementById("gFmt").value="";document.getElementById("gCons").value="";
+  document.getElementById("gSource").focus();
+  toast("已载入历史需求，点击生成即可");
+}
+function showModal(html,payload){
+  document.getElementById("modalBody").innerHTML=html;
+  document.getElementById("modalMask").classList.add("show");
+  var close=document.getElementById("mClose"),use=document.getElementById("mUse");
+  if(close)close.onclick=hideModal;
+  if(use)use.onclick=function(){hideModal();useTemplate(payload);};
+}
+function hideModal(){document.getElementById("modalMask").classList.remove("show");}
+document.getElementById("modalMask").addEventListener("click",function(e){if(e.target===this)hideModal();});
+
+/* ===== 应用：加入模板模态框 ===== */
+function openTplModal(def){
+  def=def||{};
+  var cats=["自定义"];
+  tpls.forEach(function(t){if(cats.indexOf(t.cat)<0)cats.push(t.cat);});
+  var fwOpts=FW_LIST.map(function(f){
+    return '<option value="'+f[0]+'"'+(f[0]===def.fw?" selected":"")+">"+f[1]+"</option>";
+  }).join("");
+  var catOpts=cats.map(function(c){
+    return '<option'+(c===(def.cat||"自定义")?" selected":"")+">"+esc(c)+"</option>";
+  }).join("");
+  document.getElementById("modalBody").innerHTML=
+    '<h3>加入模板</h3>'+
+    '<label class="f">模板名称</label><input type="text" id="mTplName" maxlength="40" placeholder="给模板起个名字" value="'+esc(def.name||"")+'">'+
+    '<label class="f">模板描述</label><input type="text" id="mTplDesc" maxlength="80" placeholder="一句话说明用途" value="'+esc(def.desc||"")+'">'+
+    '<label class="f">分类</label><input type="text" id="mTplCat" list="mTplCatList" value="'+esc(def.cat||"自定义")+'">'+
+    '<datalist id="mTplCatList">'+cats.map(function(c){return '<option value="'+esc(c)+'">';}).join("")+"</datalist>"+
+    '<label class="f">框架</label><select id="mTplFw">'+fwOpts+"</select>"+
+    '<label class="f">模板内容</label><textarea id="mTplContent" rows="9" placeholder="粘贴或编写提示词模板，可使用 {{变量}} 占位">'+esc(def.content||"")+'</textarea>'+
+    '<div class="row-actions"><button class="btn ghost" id="mClose">取消</button><button class="btn" id="mSaveTpl">保存</button></div>';
+  document.getElementById("modalMask").classList.add("show");
+  document.getElementById("mClose").onclick=hideModal;
+  document.getElementById("mSaveTpl").onclick=function(){
+    var name=document.getElementById("mTplName").value.trim();
+    if(!name){toast("请输入模板名称");return;}
+    var cat=document.getElementById("mTplCat").value.trim()||"自定义";
+    var fw=document.getElementById("mTplFw").value;
+    var content=document.getElementById("mTplContent").value.trim();
+    if(!content){toast("请输入模板内容");return;}
+    tpls.unshift({id:"c"+Date.now(),name:name,desc:document.getElementById("mTplDesc").value.trim(),cat:cat,fw:fw,content:content,builtin:false,fav:false,created:Date.now()});
+    save(LS.tpls,tpls);hideModal();toast("已加入模板，可在模板页查看");
+  };
+}
+
+/* ===== 应用：AI 增强 ===== */
+async function aiEnhance(){
+  if(!settings.apiKey){toast("请先在设置中配置 API Key");go("settings");return;}
+  var p=currentPrompt();
+  if(!p){toast("请先生成提示词");return;}
+  var btn=document.getElementById("gAi");btn.disabled=true;btn.textContent="AI 增强中…";
+  try{
+    var out=await callLLM(p);
+    cur.result.versions.ai=out;
+    cur.version="ai";
+    renderResult();
+    toast("AI 增强完成");
+  }catch(err){
+    toast("AI 增强失败："+(err.message||"网络错误"));
+  }finally{btn.disabled=false;btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v9h-9"/></svg>AI 增强';}
+}
+async function callLLM(prompt){
+  var key=settings.apiKey,base=settings.baseUrl.replace(/\/+$/,""),model=settings.model;
+  if(settings.provider==="claude"){
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+      headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:model||"claude-3-5-sonnet-20241022",max_tokens:4000,
+        system:"你是提示词优化专家。请把用户发来的提示词改写得更高质量：结构更清晰、约束更明确、可执行性更强。输出优化后的完整提示词本身，不要解释。",
+        messages:[{role:"user",content:prompt}]})});
+    if(!r.ok){var e=await r.json().catch(function(){return {};});throw new Error(e.error&&e.error.message||("HTTP "+r.status));}
+    var d=await r.json();return d.content.map(function(c){return c.text||"";}).join("");
+  }
+  if(settings.provider==="gemini"){
+    var url="https://generativelanguage.googleapis.com/v1beta/models/"+(model||"gemini-1.5-flash")+":generateContent?key="+encodeURIComponent(key);
+    var r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({systemInstruction:{parts:[{text:"你是提示词优化专家，请把用户提示词改写得更高质量，输出优化后的完整提示词本身，不要解释。"}]},contents:[{parts:[{text:prompt}]}]})});
+    if(!r.ok){var e=await r.json().catch(function(){return {};});throw new Error((e.error&&e.error.message)||("HTTP "+r.status));}
+    var d=await r.json();return d.candidates[0].content.parts.map(function(p){return p.text||"";}).join("");
+  }
+  // OpenAI 兼容（openai / doubao / 自定义 base）
+  var r=await fetch(base+"/chat/completions",{method:"POST",
+    headers:{"content-type":"application/json","authorization":"Bearer "+key},
+    body:JSON.stringify({model:model||"gpt-4o-mini",max_tokens:4000,
+      messages:[{role:"system",content:"你是提示词优化专家。请把用户发来的提示词改写得更高质量：结构更清晰、约束更明确、可执行性更强。输出优化后的完整提示词本身，不要解释。"},{role:"user",content:prompt}]})});
+  if(!r.ok){var e=await r.json().catch(function(){return {};});throw new Error((e.error&&e.error.message)||("HTTP "+r.status));}
+  var d=await r.json();return d.choices[0].message.content;
+}
+
+/* ===== 应用：设置 ===== */
+function saveSettings(){
+  settings.apiKey=document.getElementById("sKey").value.trim();
+  settings.baseUrl=document.getElementById("sBase").value.trim();
+  settings.provider=document.getElementById("sProvider").value;
+  settings.model=document.getElementById("sModel").value.trim();
+  settings.defModel=document.getElementById("sDefModel").value;
+  settings.defFw=document.getElementById("sDefFw").value;
+  save(LS.settings,settings);applyTheme();renderSelects();renderModeHint();
+  toast("设置已保存");
+}
+function fillSettings(){
+  document.getElementById("sKey").value=settings.apiKey;
+  document.getElementById("sBase").value=settings.baseUrl;
+  document.getElementById("sProvider").value=settings.provider;
+  document.getElementById("sModel").value=settings.model;
+  document.getElementById("sDefModel").value=settings.defModel;
+  document.getElementById("sDefFw").value=settings.defFw;
+  renderModeHint();
+}
+
+/* ===== 应用：事件绑定 ===== */
+document.addEventListener("click",function(e){
+  var nav=e.target.closest("#nav button");
+  if(nav){go(nav.dataset.view);return;}
+  var task=e.target.closest("#gTaskChips .chip");
+  if(task){cur.taskType=task.dataset.task;renderTaskChips();return;}
+  var vt=e.target.closest("#verTabs button");
+  if(vt){showVersion(vt.dataset.v);return;}
+  var tcat=e.target.closest("#tplCats .chip");
+  if(tcat){tplFilter.cat=tcat.dataset.cat;renderTemplates();return;}
+  var hb=e.target.closest("#hisList .icon-btn,#hisList [data-act=use]");
+  if(hb){hisAction(hb.dataset.id,hb.dataset.act);return;}
+  var tb=e.target.closest("#tplList .icon-btn,#tplList [data-act=use],#tplList [data-act=preview]");
+  if(tb){tplAction(tb.dataset.id,tb.dataset.act);return;}
+  if(e.target.id==="homeClearRecent"){hist=[];save(LS.histKey,hist);renderHome();toast("已清空");}
+  if(e.target.id==="hisClear"){hist=[];save(LS.histKey,hist);renderHistory();toast("已清空全部记录");}
+  if(e.target.id==="sClear"){hist=[];save(LS.histKey,hist);renderHistory();toast("历史已清空");}
+  if(e.target.id==="sBackup"){doBackup();}
+  if(e.target.id==="sRestore"){document.getElementById("restoreFile").click();}
+  if(e.target.id==="tplNew"){openTplModal({name:"",desc:"",cat:"自定义",fw:"custom",content:""});return;}
+  if(e.target.closest("#sDarkSeg button")){
+    settings.dark=e.target.closest("#sDarkSeg button").dataset.v;save(LS.settings,settings);applyTheme();
+  }
+});
+document.getElementById("homeGen").addEventListener("click",function(){
+  var v=document.getElementById("homeInput").value.trim();
+  if(!v){toast("请先输入需求");return;}
+  document.getElementById("gSource").value=v;go("generate");runGenerate(v);
+});
+document.getElementById("homeTplBtn").addEventListener("click",function(){go("templates");});
+document.getElementById("gRun").addEventListener("click",function(){runGenerate();});
+document.getElementById("gAi").addEventListener("click",aiEnhance);
+document.getElementById("actCopy").addEventListener("click",function(){copyText(currentPrompt());});
+document.getElementById("actTxt").addEventListener("click",function(){
+  download("prompt-"+Date.now()+".txt",currentPrompt(),"text/plain;charset=utf-8");toast("TXT 已下载");
+});
+document.getElementById("actMd").addEventListener("click",function(){
+  download("prompt-"+Date.now()+".md",currentPrompt(),"text/markdown;charset=utf-8");toast("Markdown 已下载");
+});
+document.getElementById("actJson").addEventListener("click",function(){
+  var r=cur.result;if(!r)return;
+  download("prompt-"+Date.now()+".json",JSON.stringify({source:r.source,fw:r.fw,framework:(FRAMEWORKS[r.fw]||{}).name,score:r.score,prompt:currentPrompt(),createdAt:new Date(r.time).toISOString()},null,2),"application/json;charset=utf-8");
+  toast("JSON 已下载");
+});
+document.getElementById("actCard").addEventListener("click",cardImage);
+document.getElementById("actSave").addEventListener("click",function(){
+  var r=cur.result;if(!r){toast("暂无结果");return;}
+  addHistory(r.source,r.fw,currentPrompt(),r.score.avg);toast("已存入历史");
+});
+document.getElementById("actTpl").addEventListener("click",function(){
+  var r=cur.result;if(!r){toast("暂无结果");return;}
+  openTplModal({name:(r.source||"").replace(/^模板：「|」$/g,"").trim().slice(0,20),fw:r.fw,content:currentPrompt()});
+});
+document.getElementById("tplSearch").addEventListener("input",function(e){tplFilter.kw=e.target.value;renderTemplates();});
+document.getElementById("hisSearch").addEventListener("input",renderHistory);
+["sKey","sBase","sProvider","sModel","sDefModel","sDefFw"].forEach(function(id){
+  document.getElementById(id).addEventListener("change",saveSettings);
+});
+document.getElementById("restoreFile").addEventListener("change",function(e){
+  var f=e.target.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    try{
+      var d=JSON.parse(reader.result);
+      if(d.templates&&Array.isArray(d.templates)){tpls=d.templates;save(LS.tpls,tpls);}
+      if(d.hist&&Array.isArray(d.hist)){hist=d.hist;save(LS.histKey,hist);}
+      if(d.settings){settings=Object.assign(settings,d.settings);save(LS.settings,settings);}
+      fillSettings();applyTheme();renderSelects();toast("数据已恢复");
+    }catch(err){toast("备份文件格式无效");}
+  };
+  reader.readAsText(f);
+  e.target.value="";
+});
+function doBackup(){
+  download("promptforge-backup-"+Date.now()+".json",
+    JSON.stringify({app:"PromptForge",version:"1.0",exportedAt:new Date().toISOString(),settings:settings,templates:tpls,hist:hist},null,2),
+    "application/json;charset=utf-8");
+  toast("备份已导出");
+}
+
+/* ===== 应用：首页 ===== */
+function renderHome(){
+  var box=document.getElementById("homeRecent");
+  var recent=hist.slice().sort(function(a,b){return b.time-a.time;}).slice(0,5);
+  if(!recent.length){box.innerHTML='<div class="empty"><div>还没有记录，输入需求即可生成第一条</div></div>';}
+  else{
+    box.innerHTML=recent.map(function(h){
+      return '<div class="his-card"><div class="row"><span class="name" title="'+esc(h.source)+'">'+esc(h.source.slice(0,40))+'</span><span class="tag">'+(FRAMEWORKS[h.fw]||{name:h.fw}).name+'</span><span class="tag">'+h.avg+"/10</span>"+
+      '<button class="icon-btn" data-act="use" data-id="'+h.id+'" title="再次使用"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button></div>'+
+      '<div class="meta">'+fmtTime(h.time)+"</div></div>";
+    }).join("");
+  }
+  var tplBox=document.getElementById("homeTpls");
+  tplBox.innerHTML=tpls.slice(0,4).map(function(t){
+    return '<div class="tpl-card"><div class="row"><span class="name">'+esc(t.name)+'</span><span class="tag">'+esc(t.cat)+'</span></div>'+
+    '<div class="desc">'+esc(t.desc)+'</div><button class="btn small" style="margin-top:8px" data-act="use" data-id="'+t.id+'">使用</button></div>';
+  }).join("");
+}
+document.getElementById("homeRecent").addEventListener("click",function(e){
+  var b=e.target.closest("[data-act=use]");if(b)hisAction(b.dataset.id,"use");
+});
+document.getElementById("homeTpls").addEventListener("click",function(e){
+  var b=e.target.closest("[data-act=use]");if(b){var t=tpls.find(function(x){return x.id===b.dataset.id;});if(t)useTemplate(t);}
+});
+document.getElementById("holderInputs").addEventListener("input",function(e){
+  var inp=e.target.closest("input[data-holder]");
+  if(inp&&cur.result){
+    cur.result.hvals[inp.dataset.holder]=inp.value;
+    showVersion(cur.version);
+  }
+});
+
+/* ===== 应用：初始化 ===== */
+renderTaskChips();renderSelects();fillSettings();applyTheme();
+var initHash=location.hash.replace("#","")||"home";
+if(["home","generate","templates","history","settings"].indexOf(initHash)<0)initHash="home";
+go(initHash);
+
+</script>
+</body>
+</html>
