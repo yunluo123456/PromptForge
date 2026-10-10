@@ -233,7 +233,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   </div>
   <div class="card quick-input" style="margin-top:14px">
     <label class="f" for="homeInput">你的需求</label>
-    <textarea id="homeInput" placeholder="例：帮我写一篇关于人工智能的公众号文章，面向产品经理，800字左右"></textarea>
+    <textarea id="homeInput" placeholder="请输入文本"></textarea>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       <button class="btn" id="homeGen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>快速生成</button>
       <button class="btn ghost" id="homeTplBtn">从模板开始</button>
@@ -970,6 +970,7 @@ function renderTemplates(){
       '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
       '<button class="btn small" data-act="use" data-id="'+t.id+'">使用此模板</button>'+
       '<button class="btn small ghost" data-act="preview" data-id="'+t.id+'">预览</button>'+
+      '<button class="btn small ghost" data-act="edit" data-id="'+t.id+'">编辑</button>'+
       "</div></div>";
   }).join("");
 }
@@ -978,6 +979,7 @@ function tplAction(id,act){
   if(act==="fav"){t.fav=!t.fav;save(LS.tpls,tpls);toast(t.fav?"已收藏":"已取消收藏");renderTemplates();}
   if(act==="del"){if(t.builtin){toast("内置模板不可删除");return;}tpls=tpls.filter(function(x){return x.id!==id;});save(LS.tpls,tpls);toast("已删除");renderTemplates();}
   if(act==="preview"){showModal('<h3>'+esc(t.name)+'</h3><div class="prompt-box">'+esc(t.content)+"</div>"+'<div class="row-actions"><button class="btn ghost" id="mClose">关闭</button><button class="btn" id="mUse">使用此模板</button></div>',t);}
+  if(act==="edit"){openTplModal({id:t.id,name:t.name,desc:t.desc,cat:t.cat,fw:t.fw,content:t.content});}
   if(act==="use"){useTemplate(t);}
 }
 function useTemplate(t){
@@ -1033,14 +1035,14 @@ function openTplModal(def){
     return '<option'+(c===(def.cat||"自定义")?" selected":"")+">"+esc(c)+"</option>";
   }).join("");
   document.getElementById("modalBody").innerHTML=
-    '<h3>加入模板</h3>'+
+    '<h3>'+(def.id?"编辑模板":"加入模板")+'</h3>'+
     '<label class="f">模板名称</label><input type="text" id="mTplName" maxlength="40" placeholder="给模板起个名字" value="'+esc(def.name||"")+'">'+
     '<label class="f">模板描述</label><input type="text" id="mTplDesc" maxlength="80" placeholder="一句话说明用途" value="'+esc(def.desc||"")+'">'+
     '<label class="f">分类</label><input type="text" id="mTplCat" list="mTplCatList" value="'+esc(def.cat||"自定义")+'">'+
     '<datalist id="mTplCatList">'+cats.map(function(c){return '<option value="'+esc(c)+'">';}).join("")+"</datalist>"+
     '<label class="f">框架</label><select id="mTplFw">'+fwOpts+"</select>"+
     '<label class="f">模板内容</label><textarea id="mTplContent" rows="9" placeholder="粘贴或编写提示词模板，可使用 {{变量}} 占位">'+esc(def.content||"")+'</textarea>'+
-    '<div class="row-actions"><button class="btn ghost" id="mClose">取消</button><button class="btn" id="mSaveTpl">保存</button></div>';
+    '<div class="row-actions"><button class="btn ghost" id="mClose">取消</button><button class="btn" id="mSaveTpl">'+(def.id?"保存修改":"保存")+'</button></div>';
   document.getElementById("modalMask").classList.add("show");
   document.getElementById("mClose").onclick=hideModal;
   document.getElementById("mSaveTpl").onclick=function(){
@@ -1050,8 +1052,14 @@ function openTplModal(def){
     var fw=document.getElementById("mTplFw").value;
     var content=document.getElementById("mTplContent").value.trim();
     if(!content){toast("请输入模板内容");return;}
-    tpls.unshift({id:"c"+Date.now(),name:name,desc:document.getElementById("mTplDesc").value.trim(),cat:cat,fw:fw,content:content,builtin:false,fav:false,created:Date.now()});
-    save(LS.tpls,tpls);hideModal();toast("已加入模板，可在模板页查看");
+    var desc=document.getElementById("mTplDesc").value.trim();
+    if(def.id){
+      for(var i=0;i<tpls.length;i++){if(tpls[i].id===def.id){tpls[i].name=name;tpls[i].desc=desc;tpls[i].cat=cat;tpls[i].fw=fw;tpls[i].content=content;break;}}
+      save(LS.tpls,tpls);hideModal();toast("已保存修改");renderTemplates();
+    }else{
+      tpls.unshift({id:"c"+Date.now(),name:name,desc:desc,cat:cat,fw:fw,content:content,builtin:false,fav:false,created:Date.now()});
+      save(LS.tpls,tpls);hideModal();toast("已加入模板，可在模板页查看");renderTemplates();
+    }
   };
 }
 
@@ -1131,7 +1139,7 @@ document.addEventListener("click",function(e){
   if(tcat){tplFilter.cat=tcat.dataset.cat;renderTemplates();return;}
   var hb=e.target.closest("#hisList .icon-btn,#hisList [data-act=use]");
   if(hb){hisAction(hb.dataset.id,hb.dataset.act);return;}
-  var tb=e.target.closest("#tplList .icon-btn,#tplList [data-act=use],#tplList [data-act=preview]");
+  var tb=e.target.closest("#tplList .icon-btn,#tplList [data-act=use],#tplList [data-act=preview],#tplList [data-act=edit]");
   if(tb){tplAction(tb.dataset.id,tb.dataset.act);return;}
   if(e.target.id==="homeClearRecent"){hist=[];save(LS.histKey,hist);renderHome();toast("已清空");}
   if(e.target.id==="hisClear"){hist=[];save(LS.histKey,hist);renderHistory();toast("已清空全部记录");}
